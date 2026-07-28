@@ -120,17 +120,20 @@ export default function AdminDashboardPage() {
       if (isCreatingNew) {
         // Create new item
         const newProd = await createProduct({
-          name: itemName,
+          name: itemName || 'New Organic Product',
           description: itemDescription,
           healthBenefits: ['Natural & Organic', 'Authentic Sourcing'],
           category: itemCategory,
           price: numericPrice,
           currency: 'GHS',
-          image: itemImage,
+          image: itemImage || 'https://images.unsplash.com/photo-1515488764276-beab7607c1e6?w=800&h=1000&fit=crop',
           inStock: numericQty > 0,
           stockQuantity: numericQty,
         });
-        await refreshProducts(newProd.id);
+        setIsCreatingNew(false);
+        setProducts((prev) => [newProd, ...prev.filter((p) => p.id !== newProd.id)]);
+        setSelectedProductId(newProd.id);
+        populateForm(newProd);
         setSaveSuccess('New item created successfully!');
       } else {
         // Update existing item

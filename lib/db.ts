@@ -92,6 +92,12 @@ export async function createProduct(product: Omit<Product, 'id' | 'createdAt'>):
     createdAt: new Date(),
   };
 
+  // Add to in-memory fallback list so it appears in shop & admin immediately
+  const existingIdx = fallbackProducts.findIndex((p) => p.id === newProduct.id);
+  if (existingIdx === -1) {
+    fallbackProducts.unshift(newProduct);
+  }
+
   if (!isSupabaseConfigured()) {
     return newProduct;
   }
@@ -106,6 +112,7 @@ export async function createProduct(product: Omit<Product, 'id' | 'createdAt'>):
       currency: newProduct.currency || 'GHS',
       image: newProduct.image,
       in_stock: newProduct.inStock ?? true,
+      stock_quantity: newProduct.stockQuantity ?? 10,
       created_at: (newProduct.createdAt || new Date()).toISOString(),
     });
 
