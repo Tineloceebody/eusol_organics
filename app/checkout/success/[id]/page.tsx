@@ -1,8 +1,7 @@
 import OrderSuccessClient from "./client";
 
-export function generateStaticParams() {
-  return [{ id: "order-success" }];
-}
+export const dynamic = "force-dynamic";
+export const dynamicParams = true;
 
 export default function OrderSuccessPage() {
   return <OrderSuccessClient />;
