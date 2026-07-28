@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAdmin } from '@/lib/admin-context';
 import { useDropzone } from 'react-dropzone';
 import { storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { ProductMedia, Product } from '@/lib/types';
+import { ProductMedia, Product, Order } from '@/lib/types';
 import {
   Upload,
   LogOut,
@@ -18,6 +18,9 @@ import {
   Image as ImageIcon,
   Save,
   Tag,
+  Truck,
+  Package,
+  Sparkles,
 } from 'lucide-react';
 import {
   getProducts,
@@ -25,6 +28,7 @@ import {
   createProduct,
   deleteProduct,
   deleteProductMedia,
+  updateOrderStatus,
 } from '@/lib/db';
 
 export default function AdminDashboardPage() {
@@ -33,6 +37,10 @@ export default function AdminDashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  const formCardRef = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Form State for Selected / New Item
   const [itemName, setItemName] = useState('');
@@ -58,6 +66,19 @@ export default function AdminDashboardPage() {
       router.push('/admin/login');
     }
   }, [isAuthenticated, loading, router]);
+
+  // Load Customer Orders
+  const refreshOrders = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const localData = localStorage.getItem('eusol_local_orders');
+        const parsed: Order[] = localData ? JSON.parse(localData) : [];
+        setOrders(parsed);
+      } catch (e) {
+        console.error('Failed to load orders:', e);
+      }
+    }
+  }, []);
 
   // Populate form with selected product data
   const populateForm = useCallback((product: Product) => {
@@ -89,8 +110,9 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (isAuthenticated) {
       refreshProducts();
+      refreshOrders();
     }
-  }, [isAuthenticated, refreshProducts]);
+  }, [isAuthenticated, refreshProducts, refreshOrders]);
 
   const handleSelectProduct = (product: Product) => {
     setSelectedProductId(product.id);
@@ -106,6 +128,18 @@ export default function AdminDashboardPage() {
     setItemPrice(85);
     setItemQuantity(15);
     setItemImage('https://images.unsplash.com/photo-1515488764276-beab7607c1e6?w=800&h=1000&fit=crop');
+
+    setTimeout(() => {
+      formCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      nameInputRef.current?.focus();
+    }, 50);
+  };
+
+  const handleStatusChange = async (orderId: string, newStatus: Order['orderStatus']) => {
+    await updateOrderStatus(orderId, newStatus);
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, orderStatus: newStatus } : o))
+    );
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
@@ -327,13 +361,26 @@ export default function AdminDashboardPage() {
             </h1>
             <p className="text-xs text-[#5a5041]">Logged in as: {user?.email}</p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 bg-[#7f6b4f] hover:bg-[#685740] text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition shadow-sm"
-          >
-            <LogOut size={16} />
-            Logout
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                const el = document.getElementById('orders-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+                else router.push('/admin/dashboard/orders');
+              }}
+              className="flex items-center gap-1.5 bg-[#efe8d7] hover:bg-[#e2d6bc] text-[#7f6b4f] px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition shadow-sm"
+            >
+              <Truck size={16} />
+              Delivery Status ({orders.length})
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 bg-[#7f6b4f] hover:bg-[#685740] text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition shadow-sm"
+            >
+              <LogOut size={16} />
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -411,7 +458,7 @@ export default function AdminDashboardPage() {
           {/* RIGHT COLUMN: Edit Item Form & Image Management */}
           <div className="lg:col-span-2 space-y-8">
             {/* Section 1: Item Details Editor / Creator */}
-            <div className="bg-white border border-[#e7dcc4] rounded-3xl p-6 sm:p-8 shadow-sm">
+            <div ref={formCardRef} className="bg-white border border-[#e7dcc4] rounded-3xl p-6 sm:p-8 shadow-sm">
               <div className="flex items-center justify-between border-b border-[#e7dcc4] pb-4 mb-6">
                 <div>
                   <h2 className="font-serif text-xl font-bold text-[#1f1b13] flex items-center gap-2">
@@ -433,6 +480,13 @@ export default function AdminDashboardPage() {
                 )}
               </div>
 
+              {isCreatingNew && (
+                <div className="mb-6 p-4 bg-[#efe8d7] border border-[#7f6b4f] rounded-2xl flex items-center gap-3 text-xs font-bold text-[#7f6b4f]">
+                  <Sparkles size={18} className="text-[#7f6b4f] flex-shrink-0" />
+                  <span>NEW ITEM MODE: Enter details for your new organic item below and click &quot;Save Product&quot;.</span>
+                </div>
+              )}
+
               {saveSuccess && (
                 <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 text-xs font-bold text-emerald-800">
                   <CheckCircle size={18} className="text-emerald-600 flex-shrink-0" />
@@ -448,6 +502,7 @@ export default function AdminDashboardPage() {
                       Item Name *
                     </label>
                     <input
+                      ref={nameInputRef}
                       type="text"
                       required
                       placeholder="e.g. Artisan Moringa Seeds"
@@ -701,6 +756,113 @@ export default function AdminDashboardPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* SECTION 3: CUSTOMER ORDERS & LIVE DELIVERY STATUS MANAGEMENT */}
+        <div id="orders-section" className="mt-12 bg-white border border-[#e7dcc4] rounded-3xl p-6 sm:p-8 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#e7dcc4] pb-5 mb-6 gap-4">
+            <div>
+              <h2 className="font-serif text-2xl font-bold text-[#1f1b13] flex items-center gap-2">
+                <Truck size={24} className="text-[#7f6b4f]" />
+                Customer Orders & Live Delivery Statuses
+              </h2>
+              <p className="text-xs text-[#5a5041] mt-1">
+                View orders placed by customers and update live delivery tracking status.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => router.push('/admin/dashboard/orders')}
+              className="px-4 py-2 bg-[#efe8d7] hover:bg-[#e2d6bc] text-[#7f6b4f] font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 self-start sm:self-auto"
+            >
+              <Package size={16} /> Detailed Orders Page
+            </button>
+          </div>
+
+          {orders.length === 0 ? (
+            <div className="py-12 text-center text-xs text-[#5a5041]">
+              <Package size={36} className="mx-auto mb-3 text-[#7f6b4f]/40" />
+              <p className="font-bold text-sm text-[#1f1b13]">No customer orders recorded yet</p>
+              <p className="mt-1">Orders placed by customers will automatically appear here for dispatch & delivery tracking.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {orders.map((ord) => (
+                <div
+                  key={ord.id}
+                  className="p-5 border border-[#e7dcc4] rounded-2xl bg-[#FAF6EE] hover:bg-white transition space-y-4"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#e7dcc4] pb-3 gap-2">
+                    <div>
+                      <span className="font-mono text-xs font-bold text-[#7f6b4f] bg-[#efe8d7] px-2.5 py-1 rounded-lg">
+                        #{ord.orderNumber}
+                      </span>
+                      <span className="text-xs font-bold text-[#1f1b13] ml-3">
+                        {ord.customerInfo?.fullName}
+                      </span>
+                      <span className="text-xs text-[#5a5041] ml-2">
+                        ({ord.customerInfo?.phone})
+                      </span>
+                    </div>
+
+                    {/* Delivery Status Selector */}
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-bold uppercase tracking-wider text-[#5a5041]">
+                        Delivery Status:
+                      </label>
+                      <select
+                        value={ord.orderStatus}
+                        onChange={(e) =>
+                          handleStatusChange(ord.id, e.target.value as Order['orderStatus'])
+                        }
+                        className="px-3 py-1.5 rounded-xl border border-[#7f6b4f] bg-white text-xs font-bold text-[#1f1b13] focus:outline-none focus:ring-2 focus:ring-[#7f6b4f]"
+                      >
+                        <option value="processing">🟡 Processing & Crafting</option>
+                        <option value="out_for_delivery">🚚 Out for Delivery</option>
+                        <option value="delivered">✅ Delivered</option>
+                        <option value="cancelled">❌ Cancelled</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid sm:grid-cols-3 gap-4 text-xs text-[#5a5041]">
+                    <div>
+                      <p className="font-bold text-[#1f1b13] uppercase text-[10px] tracking-wider mb-1">
+                        Delivery Address
+                      </p>
+                      <p>{ord.customerInfo?.address}</p>
+                      <p>{ord.customerInfo?.area}, Greater Accra</p>
+                    </div>
+
+                    <div>
+                      <p className="font-bold text-[#1f1b13] uppercase text-[10px] tracking-wider mb-1">
+                        Items Ordered ({ord.items?.length || 0})
+                      </p>
+                      <ul className="space-y-1">
+                        {ord.items?.map((it, idx) => (
+                          <li key={idx} className="truncate">
+                            • {it.quantity}x {it.name} (GHS {it.price * it.quantity})
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="sm:text-right">
+                      <p className="font-bold text-[#1f1b13] uppercase text-[10px] tracking-wider mb-1">
+                        Payment & Total
+                      </p>
+                      <p className="font-serif text-base font-bold text-[#7f6b4f]">
+                        GHS {ord.totalAmount}
+                      </p>
+                      <p className="text-[11px] capitalize">
+                        Method: {ord.paymentMethod === 'paystack' ? 'Paid Online' : 'Payment on Delivery'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>

@@ -4,6 +4,34 @@ import { products as fallbackProducts } from '@/lib/data';
 
 // Storage key for local orders fallback
 const LOCAL_ORDERS_KEY = 'eusol_local_orders';
+const LOCAL_PRODUCTS_KEY = 'eusol_local_products';
+
+// Helper to get local products from localStorage
+export function getLocalProducts(): Product[] {
+  if (typeof window === 'undefined') return fallbackProducts;
+  try {
+    const data = localStorage.getItem(LOCAL_PRODUCTS_KEY);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Error reading local products:', e);
+  }
+  return fallbackProducts;
+}
+
+// Helper to save local products to localStorage
+export function saveLocalProducts(products: Product[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(LOCAL_PRODUCTS_KEY, JSON.stringify(products));
+  } catch (e) {
+    console.error('Error saving local products:', e);
+  }
+}
 
 // Helper to get local orders from localStorage (in browser)
 function getLocalOrders(): Order[] {
@@ -33,8 +61,9 @@ function saveLocalOrder(order: Order) {
  * Fetch all products (Supabase with static fallback)
  */
 export async function getProducts(): Promise<Product[]> {
+  const localProducts = getLocalProducts();
   if (!isSupabaseConfigured()) {
-    return fallbackProducts;
+    return localProducts;
   }
 
   try {
@@ -44,13 +73,13 @@ export async function getProducts(): Promise<Product[]> {
       .order('created_at', { ascending: false });
 
     if (error || !data || data.length === 0) {
-      return fallbackProducts;
+      return localProducts;
     }
 
     return data as Product[];
   } catch (err) {
     console.warn('Supabase fetch products error, using fallback:', err);
-    return fallbackProducts;
+    return localProducts;
   }
 }
 
@@ -58,8 +87,10 @@ export async function getProducts(): Promise<Product[]> {
  * Fetch single product by ID
  */
 export async function getProductById(id: string): Promise<Product | null> {
+  const localProducts = getLocalProducts();
+  const found = localProducts.find((p) => p.id === id);
+
   if (!isSupabaseConfigured()) {
-    const found = fallbackProducts.find((p) => p.id === id);
     return found || null;
   }
 
@@ -71,13 +102,11 @@ export async function getProductById(id: string): Promise<Product | null> {
       .single();
 
     if (error || !data) {
-      const found = fallbackProducts.find((p) => p.id === id);
       return found || null;
     }
 
     return data as Product;
   } catch {
-    const found = fallbackProducts.find((p) => p.id === id);
     return found || null;
   }
 }
@@ -92,7 +121,10 @@ export async function createProduct(product: Omit<Product, 'id' | 'createdAt'>):
     createdAt: new Date(),
   };
 
-  // Add to in-memory fallback list so it appears in shop & admin immediately
+  const currentProducts = getLocalProducts();
+  const updatedProducts = [newProduct, ...currentProducts.filter((p) => p.id !== newProduct.id)];
+  saveLocalProducts(updatedProducts);
+
   const existingIdx = fallbackProducts.findIndex((p) => p.id === newProduct.id);
   if (existingIdx === -1) {
     fallbackProducts.unshift(newProduct);
@@ -271,13 +303,25 @@ export async function updateProduct(
   productId: string,
   updates: Partial<Product>
 ): Promise<boolean> {
-  const index = fallbackProducts.findIndex((p) => p.id === productId);
+  const localList = getLocalProducts();
+  const index = localList.findIndex((p) => p.id === productId);
   if (index !== -1) {
-    const nextStock = updates.stockQuantity !== undefined ? updates.stockQuantity : fallbackProducts[index].stockQuantity;
-    fallbackProducts[index] = {
-      ...fallbackProducts[index],
+    const nextStock = updates.stockQuantity !== undefined ? updates.stockQuantity : localList[index].stockQuantity;
+    localList[index] = {
+      ...localList[index],
       ...updates,
-      inStock: nextStock !== undefined ? nextStock > 0 : (updates.inStock ?? fallbackProducts[index].inStock),
+      inStock: nextStock !== undefined ? nextStock > 0 : (updates.inStock ?? localList[index].inStock),
+    };
+    saveLocalProducts(localList);
+  }
+
+  const fbIndex = fallbackProducts.findIndex((p) => p.id === productId);
+  if (fbIndex !== -1) {
+    const nextStock = updates.stockQuantity !== undefined ? updates.stockQuantity : fallbackProducts[fbIndex].stockQuantity;
+    fallbackProducts[fbIndex] = {
+      ...fallbackProducts[fbIndex],
+      ...updates,
+      inStock: nextStock !== undefined ? nextStock > 0 : (updates.inStock ?? fallbackProducts[fbIndex].inStock),
     };
   }
 
@@ -310,9 +354,13 @@ export async function updateProduct(
  * Delete a product by ID
  */
 export async function deleteProduct(productId: string): Promise<boolean> {
-  const index = fallbackProducts.findIndex((p) => p.id === productId);
-  if (index !== -1) {
-    fallbackProducts.splice(index, 1);
+  const localList = getLocalProducts();
+  const updatedLocal = localList.filter((p) => p.id !== productId);
+  saveLocalProducts(updatedLocal);
+
+  const fbIndex = fallbackProducts.findIndex((p) => p.id === productId);
+  if (fbIndex !== -1) {
+    fallbackProducts.splice(fbIndex, 1);
   }
 
   if (!isSupabaseConfigured()) return true;
