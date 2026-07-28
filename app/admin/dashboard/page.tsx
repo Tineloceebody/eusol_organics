@@ -31,6 +31,7 @@ import {
   deleteProductMedia,
   updateOrderStatus,
   updateOrderPaymentStatus,
+  getAllOrders,
 } from '@/lib/db';
 
 export default function AdminDashboardPage() {
@@ -70,16 +71,13 @@ export default function AdminDashboardPage() {
     }
   }, [isAuthenticated, loading, router]);
 
-  // Load Customer Orders
-  const refreshOrders = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const localData = localStorage.getItem('eusol_local_orders');
-        const parsed: Order[] = localData ? JSON.parse(localData) : [];
-        setOrders(parsed);
-      } catch (e) {
-        console.error('Failed to load orders:', e);
-      }
+  // Load Customer Orders from Supabase Cloud & Local Storage
+  const refreshOrders = useCallback(async () => {
+    try {
+      const allOrders = await getAllOrders();
+      setOrders(allOrders);
+    } catch (e) {
+      console.error('Failed to load cloud orders:', e);
     }
   }, []);
 
@@ -114,6 +112,12 @@ export default function AdminDashboardPage() {
     if (isAuthenticated) {
       refreshProducts();
       refreshOrders();
+
+      const interval = setInterval(() => {
+        refreshOrders();
+      }, 8000);
+
+      return () => clearInterval(interval);
     }
   }, [isAuthenticated, refreshProducts, refreshOrders]);
 

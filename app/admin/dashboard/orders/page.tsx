@@ -3,8 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Order, OrderStatus } from "@/lib/types";
-import { updateOrderStatus } from "@/lib/db";
-import { getOrdersByUserId } from "@/lib/db";
+import { updateOrderStatus, getAllOrders } from "@/lib/db";
 import {
   Package,
   Clock,
@@ -28,8 +27,8 @@ export default function AdminOrdersDashboardPage() {
 
   const fetchAllOrders = async () => {
     setLoading(true);
-    // Fetch all orders from storage/Supabase
-    const all = await getOrdersByUserId("guest");
+    // Fetch all orders from Supabase Cloud & storage
+    const all = await getAllOrders();
     setOrders(all);
     setLoading(false);
   };

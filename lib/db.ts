@@ -498,10 +498,10 @@ export async function getOrderById(idOrNumber: string): Promise<Order | null> {
 }
 
 /**
- * Get all orders for a specific logged-in user
+ * Get all orders across all users (Admin Cloud Sync function)
  */
-export async function getOrdersByUserId(userId: string): Promise<Order[]> {
-  const localOrders = getLocalOrders().filter((o) => o.userId === userId);
+export async function getAllOrders(): Promise<Order[]> {
+  const localOrders = getLocalOrders();
 
   if (!isSupabaseConfigured()) return localOrders;
 
@@ -509,10 +509,9 @@ export async function getOrdersByUserId(userId: string): Promise<Order[]> {
     const { data: ordersData, error } = await supabase
       .from('orders')
       .select('*')
-      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
-    if (error || !ordersData) return localOrders;
+    if (error || !ordersData || ordersData.length === 0) return localOrders;
 
     const fullOrders: Order[] = await Promise.all(
       ordersData.map(async (od) => {
@@ -557,11 +556,28 @@ export async function getOrdersByUserId(userId: string): Promise<Order[]> {
       })
     );
 
-    return fullOrders.length > 0 ? fullOrders : localOrders;
+    // Merge any local orders not present in Supabase
+    const sbIds = new Set(fullOrders.map((o) => o.id));
+    const extraLocal = localOrders.filter((o) => !sbIds.has(o.id));
+    const combined = [...extraLocal, ...fullOrders];
+
+    const localMap = new Map(localOrders.map((o) => [o.id, o]));
+    return combined.map((o) => localMap.get(o.id) || o);
   } catch (err) {
-    console.error('Error fetching user orders:', err);
+    console.error('Error fetching all orders:', err);
     return localOrders;
   }
+}
+
+/**
+ * Get all orders for a specific logged-in user
+ */
+export async function getOrdersByUserId(userId: string): Promise<Order[]> {
+  const allOrders = await getAllOrders();
+  if (!userId || userId === 'admin' || userId === 'guest') {
+    return allOrders;
+  }
+  return allOrders.filter((o) => o.userId === userId);
 }
 
 /**
