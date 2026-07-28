@@ -96,13 +96,11 @@ export async function getProducts(): Promise<Product[]> {
       relatedProducts: [],
     })) as Product[];
 
-    // Merge: preserve all newly created local products and local edits
+    // Merge: Cloud products from Supabase take priority for edited fields (price, name, image, stock, etc.).
+    // Any extra products created locally that aren't in Supabase yet are prepended.
     const sbIds = new Set(sbProducts.map((p) => p.id));
     const extraLocal = localProducts.filter((p) => !sbIds.has(p.id));
-    const combined = [...extraLocal, ...sbProducts];
-
-    const localMap = new Map(localProducts.map((p) => [p.id, p]));
-    const finalProducts = combined.map((p) => localMap.get(p.id) || p);
+    const finalProducts = [...extraLocal, ...sbProducts];
 
     return finalProducts;
   } catch (err) {
