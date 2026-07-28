@@ -7,7 +7,6 @@ import { products as localProducts } from "@/lib/data";
 import { fetchProducts } from "@/lib/firestore";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
-import CartDrawer from "@/components/cart-drawer";
 import ProductCard from "@/components/product-card";
 import WhatsAppButton from "@/components/whatsapp-button";
 import { Leaf, Quote } from "lucide-react";
@@ -188,7 +187,6 @@ export default function ShopPage() {
   return (
     <>
       <Navbar />
-      <CartDrawer />
       <WhatsAppButton />
 
       <main className="pt-24 md:pt-32 pb-20">
