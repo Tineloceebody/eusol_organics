@@ -21,6 +21,7 @@ import {
   Truck,
   Package,
   Sparkles,
+  Search,
 } from 'lucide-react';
 import {
   getProducts,
@@ -39,6 +40,7 @@ export default function AdminDashboardPage() {
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [orderSearchQuery, setOrderSearchQuery] = useState('');
 
   const formCardRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -357,6 +359,18 @@ export default function AdminDashboardPage() {
   }
 
   const selectedProductObj = products.find((p) => p.id === selectedProductId);
+
+  const filteredOrdersList = orders.filter((ord) => {
+    if (!orderSearchQuery.trim()) return true;
+    const q = orderSearchQuery.toLowerCase().trim();
+    return (
+      ord.orderNumber.toLowerCase().includes(q) ||
+      ord.id.toLowerCase().includes(q) ||
+      (ord.customerInfo?.fullName && ord.customerInfo.fullName.toLowerCase().includes(q)) ||
+      (ord.customerInfo?.phone && ord.customerInfo.phone.includes(q)) ||
+      (ord.customerInfo?.email && ord.customerInfo.email.toLowerCase().includes(q))
+    );
+  });
 
   return (
     <div className="min-h-screen bg-[#f8f2e6] text-[#1f1b13]">
@@ -787,15 +801,55 @@ export default function AdminDashboardPage() {
             </button>
           </div>
 
+          {/* Search Toolbar for Order ID & Customer */}
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search size={16} className="text-[#7f6b4f] absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search by Order ID (e.g. ord_178...), customer name, phone..."
+                value={orderSearchQuery}
+                onChange={(e) => setOrderSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-[#e7dcc4] bg-white text-xs font-medium text-[#1f1b13] focus:outline-none focus:ring-2 focus:ring-[#7f6b4f]"
+              />
+              {orderSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setOrderSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#7f6b4f] hover:text-[#1f1b13] bg-[#efe8d7] rounded-full w-5 h-5 flex items-center justify-center"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            {orderSearchQuery && (
+              <p className="text-xs text-[#5a5041]">
+                Showing matches for &quot;<strong className="text-[#1f1b13]">{orderSearchQuery}</strong>&quot;
+              </p>
+            )}
+          </div>
+
           {orders.length === 0 ? (
             <div className="py-12 text-center text-xs text-[#5a5041]">
               <Package size={36} className="mx-auto mb-3 text-[#7f6b4f]/40" />
               <p className="font-bold text-sm text-[#1f1b13]">No customer orders recorded yet</p>
               <p className="mt-1">Orders placed by customers will automatically appear here for dispatch & delivery tracking.</p>
             </div>
+          ) : filteredOrdersList.length === 0 ? (
+            <div className="py-10 text-center text-xs text-[#5a5041]">
+              <Search size={32} className="mx-auto mb-2 text-[#7f6b4f]/40" />
+              <p className="font-bold text-sm text-[#1f1b13]">No orders found matching &quot;{orderSearchQuery}&quot;</p>
+              <button
+                type="button"
+                onClick={() => setOrderSearchQuery('')}
+                className="mt-3 px-4 py-1.5 bg-[#efe8d7] text-[#7f6b4f] font-bold rounded-xl text-xs"
+              >
+                Clear Search Query
+              </button>
+            </div>
           ) : (
             <div className="space-y-4">
-              {orders.map((ord) => (
+              {filteredOrdersList.map((ord) => (
                 <div
                   key={ord.id}
                   className="p-5 border border-[#e7dcc4] rounded-2xl bg-[#FAF6EE] hover:bg-white transition space-y-4"
