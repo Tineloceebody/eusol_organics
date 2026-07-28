@@ -29,6 +29,7 @@ import {
   deleteProduct,
   deleteProductMedia,
   updateOrderStatus,
+  updateOrderPaymentStatus,
 } from '@/lib/db';
 
 export default function AdminDashboardPage() {
@@ -125,9 +126,9 @@ export default function AdminDashboardPage() {
     setItemName('');
     setItemDescription('');
     setItemCategory('Seeds');
-    setItemPrice(85);
-    setItemQuantity(15);
-    setItemImage('https://images.unsplash.com/photo-1515488764276-beab7607c1e6?w=800&h=1000&fit=crop');
+    setItemPrice('');
+    setItemQuantity(10);
+    setItemImage('');
 
     setTimeout(() => {
       formCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -139,6 +140,13 @@ export default function AdminDashboardPage() {
     await updateOrderStatus(orderId, newStatus);
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, orderStatus: newStatus } : o))
+    );
+  };
+
+  const handlePaymentStatusChange = async (orderId: string, newPaymentStatus: Order['paymentStatus']) => {
+    await updateOrderPaymentStatus(orderId, newPaymentStatus);
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, paymentStatus: newPaymentStatus } : o))
     );
   };
 
@@ -612,10 +620,10 @@ export default function AdminDashboardPage() {
                   >
                     <Save size={16} />
                     {savingItem
-                      ? 'Saving Item...'
+                      ? 'Saving Product...'
                       : isCreatingNew
-                      ? 'Create Product'
-                      : 'Save Item Details'}
+                      ? '+ Save & Publish New Product to Catalog'
+                      : 'Save Changes to Item'}
                   </button>
                 </div>
               </form>
@@ -805,23 +813,44 @@ export default function AdminDashboardPage() {
                       </span>
                     </div>
 
-                    {/* Delivery Status Selector */}
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs font-bold uppercase tracking-wider text-[#5a5041]">
-                        Delivery Status:
-                      </label>
-                      <select
-                        value={ord.orderStatus}
-                        onChange={(e) =>
-                          handleStatusChange(ord.id, e.target.value as Order['orderStatus'])
-                        }
-                        className="px-3 py-1.5 rounded-xl border border-[#7f6b4f] bg-white text-xs font-bold text-[#1f1b13] focus:outline-none focus:ring-2 focus:ring-[#7f6b4f]"
-                      >
-                        <option value="processing">🟡 Processing & Crafting</option>
-                        <option value="out_for_delivery">🚚 Out for Delivery</option>
-                        <option value="delivered">✅ Delivered</option>
-                        <option value="cancelled">❌ Cancelled</option>
-                      </select>
+                    {/* Status Selectors */}
+                    <div className="flex flex-wrap items-center gap-3">
+                      {/* Payment Status Dropdown */}
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs font-bold uppercase tracking-wider text-[#5a5041]">
+                          Payment:
+                        </label>
+                        <select
+                          value={ord.paymentStatus}
+                          onChange={(e) =>
+                            handlePaymentStatusChange(ord.id, e.target.value as Order['paymentStatus'])
+                          }
+                          className="px-2.5 py-1.5 rounded-xl border border-[#7f6b4f] bg-white text-xs font-bold text-[#1f1b13] focus:outline-none focus:ring-2 focus:ring-[#7f6b4f]"
+                        >
+                          <option value="pending">🟡 Pending</option>
+                          <option value="paid">✅ Paid</option>
+                          <option value="cancelled">❌ Cancelled</option>
+                        </select>
+                      </div>
+
+                      {/* Delivery Status Dropdown */}
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs font-bold uppercase tracking-wider text-[#5a5041]">
+                          Delivery:
+                        </label>
+                        <select
+                          value={ord.orderStatus}
+                          onChange={(e) =>
+                            handleStatusChange(ord.id, e.target.value as Order['orderStatus'])
+                          }
+                          className="px-2.5 py-1.5 rounded-xl border border-[#7f6b4f] bg-white text-xs font-bold text-[#1f1b13] focus:outline-none focus:ring-2 focus:ring-[#7f6b4f]"
+                        >
+                          <option value="processing">🟡 Processing</option>
+                          <option value="out_for_delivery">🚚 Out for Delivery</option>
+                          <option value="delivered">✅ Delivered</option>
+                          <option value="cancelled">❌ Cancelled</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
 

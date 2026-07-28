@@ -585,3 +585,42 @@ export async function updateOrderStatus(
     return false;
   }
 }
+
+export async function updateOrderPaymentStatus(
+  orderId: string,
+  paymentStatus: Order['paymentStatus']
+) {
+  const localOrders = getLocalOrders();
+  const updatedLocal = localOrders.map((o) => {
+    if (o.id === orderId) {
+      return {
+        ...o,
+        paymentStatus,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+    return o;
+  });
+  localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(updatedLocal));
+
+  if (!isSupabaseConfigured()) return true;
+
+  try {
+    const { error } = await supabase
+      .from('orders')
+      .update({
+        payment_status: paymentStatus,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', orderId);
+
+    if (error) {
+      console.error('Supabase update order payment status error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Update order payment status error:', err);
+    return false;
+  }
+}
