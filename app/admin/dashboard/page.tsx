@@ -940,6 +940,32 @@ export default function AdminDashboardPage() {
                       <p className="text-[11px] capitalize">
                         Method: {ord.paymentMethod === 'paystack' ? 'Paid Online' : 'Payment on Delivery'}
                       </p>
+                      {ord.customerInfo?.phone && (
+                        <a
+                          href={`https://wa.me/233${ord.customerInfo.phone.replace(/^0/, '')}?text=${encodeURIComponent(
+                            `Hello ${ord.customerInfo.fullName}, this is EUSOL Organics regarding your Order #${ord.orderNumber}.\n\n` +
+                              `🚚 *Delivery Status:* ${ord.orderStatus.replace(/_/g, ' ').toUpperCase()}\n` +
+                              `💳 *Payment Status:* ${ord.paymentStatus.toUpperCase()}\n\n` +
+                              `📦 *Order Items & Photos:*\n` +
+                              (ord.items
+                                ? ord.items
+                                    .map(
+                                      (it) =>
+                                        `• ${it.quantity}x ${it.name} (GHS ${it.price * it.quantity})\n  📸 Photo: ${it.image}`
+                                    )
+                                    .join('\n\n')
+                                : '') +
+                              `\n\n💰 *Total Amount:* GHS ${ord.totalAmount}\n` +
+                              `📍 *Address:* ${ord.customerInfo.address}, ${ord.customerInfo.area}\n\n` +
+                              `🔗 *View Live Receipt & Photos:* https://eusol-organics-five.vercel.app/checkout/success/${ord.id}`
+                          )}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 inline-flex items-center gap-1 bg-[#25D366] text-white px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:brightness-105 transition-all shadow-sm"
+                        >
+                          Message Client on WhatsApp
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>

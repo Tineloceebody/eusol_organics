@@ -286,7 +286,21 @@ export default function AdminOrdersDashboardPage() {
                     </button>
                     <a
                       href={`https://wa.me/233${ord.customerInfo.phone.replace(/^0/, "")}?text=${encodeURIComponent(
-                        `Hello ${ord.customerInfo.fullName}, this is EUSOL Organics regarding your Order #${ord.orderNumber}. Your delivery status is now: ${ord.orderStatus.replace(/_/g, " ")}.`
+                        `Hello ${ord.customerInfo.fullName}, this is EUSOL Organics regarding your Order #${ord.orderNumber}.\n\n` +
+                          `🚚 *Delivery Status:* ${ord.orderStatus.replace(/_/g, " ").toUpperCase()}\n` +
+                          `💳 *Payment Status:* ${ord.paymentStatus.toUpperCase()}\n\n` +
+                          `📦 *Order Items & Photos:*\n` +
+                          (ord.items
+                            ? ord.items
+                                .map(
+                                  (it) =>
+                                    `• ${it.quantity}x ${it.name} (GHS ${it.price * it.quantity})\n  📸 Photo: ${it.image}`
+                                )
+                                .join("\n\n")
+                            : "") +
+                          `\n\n💰 *Total Amount:* GHS ${ord.totalAmount}\n` +
+                          `📍 *Address:* ${ord.customerInfo.address}, ${ord.customerInfo.area}\n\n` +
+                          `🔗 *View Live Receipt & Photos:* https://eusol-organics-five.vercel.app/checkout/success/${ord.id}`
                       )}`}
                       target="_blank"
                       rel="noreferrer"

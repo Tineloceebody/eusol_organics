@@ -106,8 +106,25 @@ export default function OrderSuccessClient() {
     { title: "Delivered", desc: "Arrived at destination", done: order.orderStatus === "delivered" },
   ];
 
+  const itemsText = order.items
+    ? order.items
+        .map(
+          (it) =>
+            `• ${it.quantity}x ${it.name} (GHS ${it.price * it.quantity})\n  📸 Photo: ${it.image}`
+        )
+        .join("\n\n")
+    : "";
+
   const whatsappMessage = encodeURIComponent(
-    `Hello EUSOL Organics! I'm following up on my Order #${order.orderNumber}. Could you provide a quick status update?`
+    `🌿 *EUSOL Organics Order Confirmation*\n` +
+      `*Order #:* ${order.orderNumber}\n` +
+      `*Customer:* ${order.customerInfo?.fullName}\n` +
+      `*Phone:* ${order.customerInfo?.phone}\n` +
+      `*Location:* ${order.customerInfo?.address}, ${order.customerInfo?.area}, Greater Accra\n\n` +
+      `📦 *Items Ordered:*\n${itemsText}\n\n` +
+      `💰 *Total Amount:* GHS ${order.totalAmount}\n` +
+      `💳 *Payment Method:* ${order.paymentMethod === 'paystack' ? 'Paid Online (Paystack)' : 'Payment on Delivery'}\n` +
+      `🔗 *View Full Receipt & Photos:* https://eusol-organics-five.vercel.app/checkout/success/${order.id}`
   );
 
   return (
