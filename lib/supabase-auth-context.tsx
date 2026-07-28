@@ -91,6 +91,18 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
+      if (typeof window !== "undefined") {
+        try {
+          const savedUser = localStorage.getItem("eusol_local_user");
+          const savedProfile = localStorage.getItem("eusol_local_profile");
+          if (savedUser && savedProfile) {
+            setUser(JSON.parse(savedUser));
+            setProfile(JSON.parse(savedProfile));
+          }
+        } catch (e) {
+          console.error("Local auth hydration error:", e);
+        }
+      }
       setLoading(false);
       return;
     }
@@ -126,7 +138,29 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
   const signUp = async (email: string, password: string, fullName: string, phone: string) => {
     if (!isSupabaseConfigured()) {
-      return { error: "Supabase credentials are not configured in .env.local" };
+      // Local account registration fallback
+      const mockUser: User = {
+        id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        app_metadata: { provider: "local" },
+        user_metadata: { full_name: fullName, phone },
+        aud: "authenticated",
+        created_at: new Date().toISOString(),
+        email,
+      };
+      const mockProfile: UserProfile = {
+        id: mockUser.id,
+        fullName,
+        phone,
+        email,
+        region: "Greater Accra",
+      };
+      setUser(mockUser);
+      setProfile(mockProfile);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("eusol_local_user", JSON.stringify(mockUser));
+        localStorage.setItem("eusol_local_profile", JSON.stringify(mockProfile));
+      }
+      return { error: null };
     }
 
     try {
@@ -161,7 +195,41 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
   const signIn = async (email: string, password: string) => {
     if (!isSupabaseConfigured()) {
-      return { error: "Supabase credentials are not configured in .env.local" };
+      if (typeof window !== "undefined") {
+        const savedUser = localStorage.getItem("eusol_local_user");
+        const savedProfile = localStorage.getItem("eusol_local_profile");
+        if (savedUser && savedProfile) {
+          const parsedUser = JSON.parse(savedUser);
+          const parsedProfile = JSON.parse(savedProfile);
+          if (parsedUser.email === email) {
+            setUser(parsedUser);
+            setProfile(parsedProfile);
+            return { error: null };
+          }
+        }
+      }
+      const mockUser: User = {
+        id: `usr_${Date.now()}`,
+        app_metadata: { provider: "local" },
+        user_metadata: { full_name: email.split("@")[0] },
+        aud: "authenticated",
+        created_at: new Date().toISOString(),
+        email,
+      };
+      const mockProfile: UserProfile = {
+        id: mockUser.id,
+        fullName: email.split("@")[0],
+        phone: "",
+        email,
+        region: "Greater Accra",
+      };
+      setUser(mockUser);
+      setProfile(mockProfile);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("eusol_local_user", JSON.stringify(mockUser));
+        localStorage.setItem("eusol_local_profile", JSON.stringify(mockProfile));
+      }
+      return { error: null };
     }
 
     try {
@@ -180,6 +248,10 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const signOut = async () => {
     if (isSupabaseConfigured()) {
       await supabase.auth.signOut();
+    }
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("eusol_local_user");
+      localStorage.removeItem("eusol_local_profile");
     }
     setUser(null);
     setSession(null);
