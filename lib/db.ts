@@ -58,7 +58,7 @@ function saveLocalOrder(order: Order) {
 }
 
 /**
- * Fetch all products (Supabase with static fallback)
+ * Fetch all products (Supabase with static & local storage fallback)
  */
 export async function getProducts(): Promise<Product[]> {
   const localProducts = getLocalProducts();
@@ -76,7 +76,35 @@ export async function getProducts(): Promise<Product[]> {
       return localProducts;
     }
 
-    return data as Product[];
+    const sbProducts = (data as Record<string, unknown>[]).map((d) => ({
+      id: String(d.id),
+      name: String(d.name || ''),
+      description: String(d.description || ''),
+      longDescription: String(d.long_description || d.description || ''),
+      category: (d.category as Product['category']) || 'Seeds',
+      price: Number(d.price || 0),
+      currency: String(d.currency || 'GHS'),
+      image: String(d.image || ''),
+      inStock: d.in_stock !== false && (d.stock_quantity === undefined || Number(d.stock_quantity) > 0),
+      stockQuantity: d.stock_quantity !== undefined ? Number(d.stock_quantity) : 10,
+      badge: String(d.badge || 'Organic'),
+      provenance: String(d.provenance || 'Ghana'),
+      weight: String(d.weight || '250g'),
+      healthBenefits: Array.isArray(d.health_benefits)
+        ? d.health_benefits.map(String)
+        : ['Natural & Organic', 'Authentic Sourcing'],
+      relatedProducts: [],
+    })) as Product[];
+
+    // Merge: preserve all newly created local products and local edits
+    const sbIds = new Set(sbProducts.map((p) => p.id));
+    const extraLocal = localProducts.filter((p) => !sbIds.has(p.id));
+    const combined = [...extraLocal, ...sbProducts];
+
+    const localMap = new Map(localProducts.map((p) => [p.id, p]));
+    const finalProducts = combined.map((p) => localMap.get(p.id) || p);
+
+    return finalProducts;
   } catch (err) {
     console.warn('Supabase fetch products error, using fallback:', err);
     return localProducts;

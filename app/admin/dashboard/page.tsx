@@ -175,9 +175,7 @@ export default function AdminDashboardPage() {
           stockQuantity: numericQty,
         });
         setIsCreatingNew(false);
-        setProducts((prev) => [newProd, ...prev.filter((p) => p.id !== newProd.id)]);
-        setSelectedProductId(newProd.id);
-        populateForm(newProd);
+        await refreshProducts(newProd.id);
         setSaveSuccess('New item created successfully!');
       } else {
         // Update existing item
