@@ -1,38 +1,28 @@
-import { collection, doc, getDoc, getDocs, orderBy, query, where } from 'firebase/firestore';
-import { db } from './firebase';
 import { Product } from './types';
-
-const mapProductSnapshot = (docSnapshot: { id: string; data: () => Record<string, unknown> }): Product => {
-  const data = docSnapshot.data();
-  return {
-    id: docSnapshot.id,
-    ...data,
-  } as Product;
-};
+import { getProducts, getProductById } from './db';
 
 export async function fetchProducts(): Promise<Product[]> {
-  const productsCollection = collection(db, 'products');
-  const productsQuery = query(productsCollection, orderBy('name'));
-  const snapshot = await getDocs(productsQuery);
-  return snapshot.docs.map(mapProductSnapshot);
+  try {
+    return await getProducts();
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchProductById(id: string): Promise<Product | null> {
-  const productRef = doc(db, 'products', id);
-  const snapshot = await getDoc(productRef);
-  if (!snapshot.exists()) {
+  try {
+    return await getProductById(id);
+  } catch {
     return null;
   }
-  return mapProductSnapshot(snapshot);
 }
 
 export async function fetchProductsByIds(ids: string[]): Promise<Product[]> {
-  if (ids.length === 0) {
+  if (ids.length === 0) return [];
+  try {
+    const all = await getProducts();
+    return all.filter((p) => ids.includes(p.id));
+  } catch {
     return [];
   }
-
-  const productsCollection = collection(db, 'products');
-  const productsQuery = query(productsCollection, where('__name__', 'in', ids));
-  const snapshot = await getDocs(productsQuery);
-  return snapshot.docs.map(mapProductSnapshot);
 }
